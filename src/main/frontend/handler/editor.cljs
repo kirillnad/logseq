@@ -2982,7 +2982,6 @@
            (commands/handle-step [:editor/search-block :reference])
            (state/set-editor-action-data! {:pos (cursor/get-caret-pos input)}))
 
-         ;; Handle non-ascii angle brackets
          (and (= "„Äà" c)
               (= "„Ää" (util/nth-safe (gobj/get input "value") (dec (dec current-pos))))
               (> current-pos 0))
@@ -3252,44 +3251,6 @@
          (cursor/select-up-down input direction anchor cursor-rect)))
       (select-block-up-down direction))))
 
-(defn open-selected-block!
-  [direction e]
-  (let [selected-blocks (state/get-selection-blocks)
-        f (case direction
-            :left first
-            :right last)]
-    (when-let [block-id (some-> selected-blocks
-                                f
-                                (dom/attr "blockid")
-                                uuid)]
-      (util/stop e)
-      (let [block    {:block/uuid block-id}
-            block-id (-> selected-blocks
-                         f
-                         (gobj/get "id")
-                         (string/replace "ls-block" "edit-block"))
-            left?    (= direction :left)]
-        (edit-block! block
-                    (if left? 0 :max)
-                    block-id)))))
-
-(defn shortcut-left-right [direction]
-  (fn [e]
-    (when (and (not (auto-complete?))
-               (not (state/get-timestamp-block)))
-      (cond
-        (state/editing?)
-        (do
-          (util/stop e)
-          (keydown-arrow-handler direction))
-
-        (state/selection?)
-        (do
-          (util/stop e)
-          (open-selected-block! direction e))
-
-        :else
-        nil))))
 
 (defn clear-block-content! []
   (save-current-block! {:force? true})
@@ -3379,7 +3340,7 @@
             (block-with-title? (:block/format block)
                                (:block/content block)
                                semantic?)))
-           (some? (:block/uuid (db/entity (:db/id (:block/page block))))) ; kir ≈ÒÎË ·ÎÓÍ - ˝ÚÓ ÛÊÂ ÒÚ‡ÌËˆ‡, ÚÓ Û ÌÂ„Ó ÌÂÚ ÒÚ‡ÌËˆ˚ - ÒÚ‡ÌËˆÛ Ò‚Ó‡˜Ë‚‡Ú¸ ÌÂÎ¸Áˇ...
+           (some? (:block/uuid (db/entity (:db/id (:block/page block))))) ; kir √Ö√±√´√® √°√´√Æ√™ - √Ω√≤√Æ √≥√¶√• √±√≤√∞√†√≠√®√∂√†, √≤√Æ √≥ √≠√•√£√Æ √≠√•√≤ √±√≤√∞√†√≠√®√∂√ª - √±√≤√∞√†√≠√®√∂√≥ √±√¢√Æ√∞√†√∑√®√¢√†√≤√º √≠√•√´√º√ß√ø...
      	)
        false)
      ))
@@ -3521,7 +3482,7 @@
                  (expand-block! uuid))))))))))
 
 (defn collapse!
-  ; KIR ≈ÒÎË ·ÎÓÍ ‡ÒÍ˚Ú - Ò‚Ó‡˜Ë‚‡ÂÚÒˇ ÓÌ. ≈ÒÎË ÛÊÂ Ò‚∏ÓÛÚ - ÚÓ Ó‰ËÚÂÎ¸ÒÍËÈ.
+  ; KIR √Ö√±√´√® √°√´√Æ√™ √∞√†√±√™√∞√ª√≤ - √±√¢√Æ√∞√†√∑√®√¢√†√•√≤√±√ø √Æ√≠. √Ö√±√´√® √≥√¶√• √±√¢¬∏√Æ√∞√≥√≤ - √≤√Æ √∞√Æ√§√®√≤√•√´√º√±√™√®√©.
   ([e] (collapse! e false))
   ([e clear-selection?]
    (when e (util/stop e))
@@ -3529,13 +3490,13 @@
      (state/editing?)
 			(when-let [block-id 
 				(if (db/has-children? (:block/uuid (state/get-edit-block)))
-					; ÂÒÎË ÂÒÚ¸ ‰ÂÚË, ÚÓ ÂÒÎË ÌÂ Ò‚∏ÌÛÚ - Ò‚Ó‡˜Ë‚‡ÂÏ, ÂÒÎË Ò‚∏ÌÛÚ - Ò‚Ó‡˜Ë‚‡ÂÏ Ó‰ËÚÂÎˇ.
+					; √•√±√´√® √•√±√≤√º √§√•√≤√®, √≤√Æ √•√±√´√® √≠√• √±√¢¬∏√∞√≠√≥√≤ - √±√¢√Æ√∞√†√∑√®√¢√†√•√¨, √•√±√´√® √±√¢√∞¬∏√∞√≠√≥√≤ - √±√¢√Æ√∞√†√∑√®√¢√†√•√¨ √∞√Æ√§√®√≤√•√´√ø.
 					(if (util/collapsed? (db-model/query-block-by-uuid (:block/uuid (state/get-edit-block)))) 
-							(:block/uuid (db/get-block-parent (:block/uuid (state/get-edit-block)))) ; Ò‚Ó‡˜Ë‚‡ÂÏ ·ÎÓÍ-Ó‰ËÚÂÎ¸
-							(:block/uuid (state/get-edit-block)) ; Ò‚Ó‡˜Ë‚‡ÂÏ Â„Ó Ò‡ÏÓ„Ó
+							(:block/uuid (db/get-block-parent (:block/uuid (state/get-edit-block)))) ; √±√¢√Æ√∞√†√∑√®√¢√†√•√¨ √°√´√Æ√™-√∞√Æ√§√®√≤√•√´√º
+							(:block/uuid (state/get-edit-block)) ; √±√¢√Æ√∞√†√∑√®√¢√†√•√¨ √•√£√Æ √±√†√¨√Æ√£√Æ
 					)
-					; ÂÒÎË ÌÂÚ ‰ÂÚÂÈ, ÚÓ Ò‚Ó‡˜Ë‚‡ÂÏ Ó‰ËÚÂÎˇ
-					(:block/uuid (db/get-block-parent (:block/uuid (state/get-edit-block)))) ; Ò‚Ó‡˜Ë‚‡ÂÏ ·ÎÓÍ-Ó‰ËÚÂÎ¸
+					; √•√±√´√® √≠√•√≤ √§√•√≤√•√©, √≤√Æ √±√¢√Æ√∞√†√∑√®√¢√†√•√¨ √∞√Æ√§√®√≤√•√´√ø
+					(:block/uuid (db/get-block-parent (:block/uuid (state/get-edit-block)))) ; √±√¢√Æ√∞√†√∑√®√¢√†√•√¨ √°√´√Æ√™-√∞√Æ√§√®√≤√•√´√º
 				)
 			] ; kir
 
@@ -3557,13 +3518,13 @@
                (-> 
 	               	(let [block-id 
 										(if (db/has-children? (uuid (dom/attr dom "blockid")))
-											; ÂÒÎË ÂÒÚ¸ ‰ÂÚË, ÚÓ ÂÒÎË ÌÂ Ò‚∏ÌÛÚ - Ò‚Ó‡˜Ë‚‡ÂÏ, ÂÒÎË Ò‚∏ÌÛÚ - Ò‚Ó‡˜Ë‚‡ÂÏ Ó‰ËÚÂÎˇ.
+											; √•√±√´√® √•√±√≤√º √§√•√≤√®, √≤√Æ √•√±√´√® √≠√• √±√¢¬∏√∞√≠√≥√≤ - √±√¢√Æ√∞√†√∑√®√¢√†√•√¨, √•√±√´√® √±√¢√∞¬∏√∞√≠√≥√≤ - √±√¢√Æ√∞√†√∑√®√¢√†√•√¨ √∞√Æ√§√®√≤√•√´√ø.
 											(if (util/collapsed? (db-model/query-block-by-uuid (uuid (dom/attr dom "blockid")))) 
-													(:block/uuid (db/get-block-parent (uuid (dom/attr dom "blockid")))) ; Ò‚Ó‡˜Ë‚‡ÂÏ ·ÎÓÍ-Ó‰ËÚÂÎ¸
-													(uuid (dom/attr dom "blockid")) ; Ò‚Ó‡˜Ë‚‡ÂÏ Â„Ó Ò‡ÏÓ„Ó
+													(:block/uuid (db/get-block-parent (uuid (dom/attr dom "blockid")))) ; √±√¢√Æ√∞√†√∑√®√¢√†√•√¨ √°√´√Æ√™-√∞√Æ√§√®√≤√•√´√º
+													(uuid (dom/attr dom "blockid")) ; √±√¢√Æ√∞√†√∑√®√¢√†√•√¨ √•√£√Æ √±√†√¨√Æ√£√Æ
 											)
-											; ÂÒÎË ÌÂÚ ‰ÂÚÂÈ, ÚÓ Ò‚Ó‡˜Ë‚‡ÂÏ Ó‰ËÚÂÎˇ
-											(:block/uuid (db/get-block-parent (uuid (dom/attr dom "blockid")))) ; Ò‚Ó‡˜Ë‚‡ÂÏ ·ÎÓÍ-Ó‰ËÚÂÎ¸
+											; √•√±√´√® √≠√•√≤ √§√•√≤√•√©, √≤√Æ √±√¢√Æ√∞√†√∑√®√¢√†√•√¨ √∞√Æ√§√®√≤√•√´√ø
+											(:block/uuid (db/get-block-parent (uuid (dom/attr dom "blockid")))) ; √±√¢√Æ√∞√†√∑√®√¢√†√•√¨ √°√´√Æ√™-√∞√Æ√§√®√≤√•√´√º
 										)
 
 	               	]
@@ -3866,3 +3827,55 @@
   (.setData (gobj/get event "dataTransfer")
             (if (db-model/page? block-or-page-name) "page-name" "block-uuid")
             (str block-or-page-name)))
+
+(defn open-selected-block!
+  [direction e]
+  (let [selected-blocks (state/get-selection-blocks)
+        f (case direction
+            :left first
+            :right last)]
+    (when-let [block-id (some-> selected-blocks
+                                f
+                                (dom/attr "blockid")
+                                uuid)]
+      (util/stop e)
+      (let [block    {:block/uuid block-id}
+            block-id (-> selected-blocks
+                         f
+                         (gobj/get "id")
+                         (string/replace "ls-block" "edit-block"))
+            left?    (= direction :left)]
+        (edit-block! block
+                    (if left? 0 :max)
+                    block-id)))))
+
+(defn open-selected-block-lr! ;kir —Å–≤–æ—Ä–∞—á–∏–≤–∞–µ–º –Ω–∞ —Å—Ç—Ä–µ–ª–∫–∏ –≤–ø—Ä–∞–≤–æ-–≤–ª–µ–≤–æ
+  [direction e]
+  ; (
+		; 	(js/console.error "open-selected-block!")
+		; 	(js/console.error direction)
+	  (case  direction
+	  	:left (collapse! e)
+	  	:right (expand! e)
+	  )
+  )
+; )
+
+
+(defn shortcut-left-right [direction]
+  (fn [e]
+    (when (and (not (auto-complete?))
+               (not (state/get-timestamp-block)))
+      (cond
+        (state/editing?)
+        (do
+          (util/stop e)
+          (keydown-arrow-handler direction))
+
+        (state/selection?)
+        (do
+          (util/stop e)
+          (open-selected-block-lr! direction e))
+
+        :else
+        nil))))
