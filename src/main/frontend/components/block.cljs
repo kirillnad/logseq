@@ -2133,7 +2133,7 @@
    (dom/closest target "a")
    (dom/closest target ".query-table")))
 
-(defn- block-content-on-mouse-down
+(defn- block-content-on-mouse-down ;обработчик клика на блоке ;kir
   [e block block-id content edit-input-id]
   (when-not (> (count content) (state/block-content-max-length (state/get-current-repo)))
     (let [target (gobj/get e "target")
@@ -2179,12 +2179,16 @@
                            ;; save current editing block
                            (let [{:keys [value] :as state} (editor-handler/get-state)]
                              (editor-handler/save-block! state value))
-                           (state/set-editing!
-                            edit-input-id
-                            content
-                            block
-                            cursor-range
-                            false))]
+
+                (editor-handler/highlight-selection-area! block-id) ;kir - на клик мышки встаём на блок, но не переходим в режим редактирования
+                           ; (state/set-editing!
+                           ;  edit-input-id
+                           ;  content
+                           ;  block
+                           ;  cursor-range
+                           ;  false)
+
+                           )]
                   ;; wait a while for the value of the caret range
                   (if (util/ios?)
                     (f)
