@@ -1,3 +1,4 @@
+*.bak
 /e2e-dump
 /target
 /classes

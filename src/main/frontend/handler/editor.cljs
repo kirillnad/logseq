@@ -3370,6 +3370,7 @@
               :or {semantic? false}}]
    (when block-id
      (if-let [block (db-model/query-block-by-uuid block-id)]
+     	(and
        (or (db-model/has-children? block-id)
            (valid-dsl-query-block? block)
            (valid-custom-query-block? block)
@@ -3378,7 +3379,11 @@
             (block-with-title? (:block/format block)
                                (:block/content block)
                                semantic?)))
-       false))))
+           (some? (:block/uuid (db/entity (:db/id (:block/page block))))) ; kir Если блок - это уже страница, то у него нет страницы - страницу сворачивать нельзя...
+     	)
+       false)
+     ))
+  )
 
 (defn all-blocks-with-level
   "Return all blocks associated with correct level
@@ -3516,23 +3521,60 @@
                  (expand-block! uuid))))))))))
 
 (defn collapse!
+  ; KIR Если блок раскрыт - сворачивается он. Если уже свёорут - то родительский.
   ([e] (collapse! e false))
   ([e clear-selection?]
    (when e (util/stop e))
    (cond
      (state/editing?)
-     (when-let [block-id (:block/uuid (state/get-edit-block))]
-       (collapse-block! block-id))
+			(when-let [block-id 
+				(if (db/has-children? (:block/uuid (state/get-edit-block)))
+					; если есть дети, то если не свёрнут - сворачиваем, если сврёрнут - сворачиваем родителя.
+					(if (util/collapsed? (db-model/query-block-by-uuid (:block/uuid (state/get-edit-block)))) 
+							(:block/uuid (db/get-block-parent (:block/uuid (state/get-edit-block)))) ; сворачиваем блок-родитель
+							(:block/uuid (state/get-edit-block)) ; сворачиваем его самого
+					)
+					; если нет детей, то сворачиваем родителя
+					(:block/uuid (db/get-block-parent (:block/uuid (state/get-edit-block)))) ; сворачиваем блок-родитель
+				)
+			] ; kir
 
+							; (let [block (db-model/query-block-by-uuid block-id)]
+							; 	(js/console.error "block") ;kir
+							; 	(js/console.error block) ;kir
+							; 	(js/console.error "(util/collapsed? block)") ;kir
+							; 	(js/console.error (util/collapsed? block)) ;kir
+							; )
+
+							(collapse-block! block-id) 
+							(select-block! block-id) ;kir
+
+	    )
      (state/selection?)
      (do
        (->> (get-selected-blocks)
             (map (fn [dom]
-                   (-> (dom/attr dom "blockid")
-                       uuid
-                       collapse-block!)))
+               (-> 
+	               	(let [block-id 
+										(if (db/has-children? (uuid (dom/attr dom "blockid")))
+											; если есть дети, то если не свёрнут - сворачиваем, если сврёрнут - сворачиваем родителя.
+											(if (util/collapsed? (db-model/query-block-by-uuid (uuid (dom/attr dom "blockid")))) 
+													(:block/uuid (db/get-block-parent (uuid (dom/attr dom "blockid")))) ; сворачиваем блок-родитель
+													(uuid (dom/attr dom "blockid")) ; сворачиваем его самого
+											)
+											; если нет детей, то сворачиваем родителя
+											(:block/uuid (db/get-block-parent (uuid (dom/attr dom "blockid")))) ; сворачиваем блок-родитель
+										)
+
+	               	]
+	            	 		(collapse-block! block-id)
+										(select-block! block-id)
+	               	)
+	             	)
+	           ))
             doall)
-       (and clear-selection? (clear-selection!)))
+     			  (and clear-selection? (clear-selection!))
+			)
 
      (whiteboard?)
      (.setCollapsed (.-api ^js (state/active-tldraw-app)) true)
