@@ -3340,7 +3340,7 @@
             (block-with-title? (:block/format block)
                                (:block/content block)
                                semantic?)))
-           (some? (:block/uuid (db/entity (:db/id (:block/page block))))) ; kir Åñëè áëîê - ýòî óæå ñòðàíèöà, òî ó íåãî íåò ñòðàíèöû - ñòðàíèöó ñâîðà÷èâàòü íåëüçÿ...
+           (some? (:block/uuid (db/entity (:db/id (:block/page block))))) ;kir Если блок - это уже страница, то у него нет страницы - страницу сворачивать нельзя...
      	)
        false)
      ))
@@ -3436,9 +3436,12 @@
         (state/set-collapsed-block! block-id value)))))
 
 (defn collapse-block! [block-id]
-  (when (collapsable? block-id)
+  ; (when (collapsable? block-id) ;kir 
+  (if (collapsable? block-id) ;kir
     (when-not (skip-collapsing-in-db?)
-      (set-blocks-collapsed! [block-id] true))))
+      (set-blocks-collapsed! [block-id] true))
+    (escape-editing)
+   ))
 
 (defn expand-block! [block-id]
   (when-not (skip-collapsing-in-db?)
@@ -3482,7 +3485,7 @@
                  (expand-block! uuid))))))))))
 
 (defn collapse!
-  ; KIR Åñëè áëîê ðàñêðûò - ñâîðà÷èâàåòñÿ îí. Åñëè óæå ñâ¸îðóò - òî ðîäèòåëüñêèé.
+  ; KIR Если блок раскрыт - сворачивается он. Если уже свёорут - то родительский.
   ([e] (collapse! e false))
   ([e clear-selection?]
    (when e (util/stop e))
@@ -3490,12 +3493,12 @@
      (state/editing?)
 			(when-let [block-id 
 				(if (db/has-children? (:block/uuid (state/get-edit-block)))
-					; åñëè åñòü äåòè, òî åñëè íå ñâ¸ðíóò - ñâîðà÷èâàåì, åñëè ñâð¸ðíóò - ñâîðà÷èâàåì ðîäèòåëÿ.
+					; если есть дети, то если не свёрнут - сворачиваем, если сврёрнут - сворачиваем родителя.
 					(if (util/collapsed? (db-model/query-block-by-uuid (:block/uuid (state/get-edit-block)))) 
-							(:block/uuid (db/get-block-parent (:block/uuid (state/get-edit-block)))) ; ñâîðà÷èâàåì áëîê-ðîäèòåëü
-							(:block/uuid (state/get-edit-block)) ; ñâîðà÷èâàåì åãî ñàìîãî
+							(:block/uuid (db/get-block-parent (:block/uuid (state/get-edit-block)))) ; сворачиваем блок-родитель
+							(:block/uuid (state/get-edit-block)) ; сворачиваем его самого
 					)
-					; åñëè íåò äåòåé, òî ñâîðà÷èâàåì ðîäèòåëÿ
+					; если нет детей, то сворачиваем родителя
 					(:block/uuid (db/get-block-parent (:block/uuid (state/get-edit-block)))) ; ñâîðà÷èâàåì áëîê-ðîäèòåëü
 				)
 			] ; kir
@@ -3518,13 +3521,13 @@
                (-> 
 	               	(let [block-id 
 										(if (db/has-children? (uuid (dom/attr dom "blockid")))
-											; åñëè åñòü äåòè, òî åñëè íå ñâ¸ðíóò - ñâîðà÷èâàåì, åñëè ñâð¸ðíóò - ñâîðà÷èâàåì ðîäèòåëÿ.
+											; если есть дети, то если не свёрнут - сворачиваем, если сврёрнут - сворачиваем родителя.
 											(if (util/collapsed? (db-model/query-block-by-uuid (uuid (dom/attr dom "blockid")))) 
-													(:block/uuid (db/get-block-parent (uuid (dom/attr dom "blockid")))) ; ñâîðà÷èâàåì áëîê-ðîäèòåëü
-													(uuid (dom/attr dom "blockid")) ; ñâîðà÷èâàåì åãî ñàìîãî
+													(:block/uuid (db/get-block-parent (uuid (dom/attr dom "blockid")))) ; сворачиваем блок-родитель
+													(uuid (dom/attr dom "blockid")) ; сворачиваем его самого
 											)
-											; åñëè íåò äåòåé, òî ñâîðà÷èâàåì ðîäèòåëÿ
-											(:block/uuid (db/get-block-parent (uuid (dom/attr dom "blockid")))) ; ñâîðà÷èâàåì áëîê-ðîäèòåëü
+											; если нет детей, то сворачиваем родителя
+											(:block/uuid (db/get-block-parent (uuid (dom/attr dom "blockid")))) 
 										)
 
 	               	]
