@@ -770,8 +770,16 @@
        {:outliner-op :delete-blocks}
        (outliner-core/delete-blocks! [block] {:children? children?})))))
 
-(defn- move-to-prev-block
+(defn select-block!
+  [block-uuid]
+	(js/console.warn "select-block!") ;kir
+	(js/console.warn block-uuid) ;kir
+	(js/console.warn (:block/content (db-model/query-block-by-uuid block-uuid))) ;kir
+  (block-handler/select-block! block-uuid))
+
+(defn- move-to-prev-block ;после удаления блока
   [repo sibling-block format id value move?]
+	(js/console.warn "move-to-prev-block") ;kir
   (when (and repo sibling-block)
     (when-let [sibling-block-id (dom/attr sibling-block "blockid")]
       (when-let [block (db/pull repo '[*] [:block/uuid (uuid sibling-block-id)])]
@@ -788,16 +796,27 @@
                      (gobj/get (utf8/encode original-content) "length")
                      0)
                    0)
-              f (fn []
-                  (edit-block! (db/pull (:db/id block))
-                               pos
-                               id
-                               {:custom-content new-value
-                                :tail-len tail-len}))]
+              f (fn [] 
+                  ()
+                  (select-block! (:block/uuid block))
+                  (select-block! (:block/uuid block))
+                  ; (js/console.warn "new-value") ;kir
+                  ; (js/console.warn new-value) ;kir
+                  ; kir - вместо редактирования просто встаём на блок.
+
+
+                  ; (edit-block! (db/pull (:db/id block))
+                  ;              pos
+                  ;              id
+                  ;              {:custom-content new-value
+                  ;               :tail-len tail-len})
+                  )
+              ]
           (when move? (f))
           {:prev-block block
            :new-content new-value
-           :move-fn f})))))
+           :move-fn f
+           })))))
 
 (declare save-block!)
 
@@ -809,7 +828,9 @@
   ([repo]
    (delete-block! repo true))
   ([repo delete-children?]
+   (js/console.error "delete-block!-1") ;kir
    (state/set-editor-op! :delete)
+   (js/console.error "delete-block!") ;kir
    (let [{:keys [id block-id block-parent-id value format config]} (get-state)]
      (when block-id
        (let [page-id (:db/id (:block/page (db/entity [:block/uuid block-id])))
@@ -853,6 +874,7 @@
 
 (defn delete-blocks!
   [repo block-uuids blocks dom-blocks]
+	(js/console.error "delete-blocks!") ;kir
   (when (seq block-uuids)
     (let [uuid->dom-block (zipmap block-uuids dom-blocks)
           block (first blocks)
@@ -954,10 +976,6 @@
   ([block-id tap-clipboard]
    (set-blocks-id! [block-id])
    (util/copy-to-clipboard! (tap-clipboard block-id))))
-
-(defn select-block!
-  [block-uuid]
-  (block-handler/select-block! block-uuid))
 
 (defn- compose-copied-blocks-contents
   [repo block-ids]
@@ -2633,6 +2651,7 @@
           (cursor/move-cursor-forward input))))))
 
 (defn- delete-and-update [^js input start end]
+  (js/console.error "delete-and-update") ;kir
   (util/safe-set-range-text! input "" start end)
   (state/set-edit-content! (state/get-edit-input-id) (.-value input)))
 
@@ -2647,6 +2666,8 @@
         next-block (if (or collapsed? (not current-block-has-children?))
                      (when right (db/pull (:db/id right)))
                      first-child)]
+  
+  (js/console.error "delete-concat") ;kir
     (cond
       (nil? next-block)
       nil
@@ -2678,8 +2699,12 @@
         (outliner-tx/transact! transact-opts
           (delete-block-aux! next-block false)
           (save-block! repo edit-block' new-content {:editor/op :delete}))
-        (let [block (if next-block-has-refs? next-block edit-block)]
-          (edit-block! block current-pos (:block/uuid block)))))))
+
+        (js/console.error "delete-concat") ;kir
+        (let [block (if next-block-has-refs? next-block edit-block)] 
+          (edit-block! block current-pos (:block/uuid block)))	
+
+        ))))
 
 (defn keydown-delete-handler
   [_e]
@@ -2690,6 +2715,7 @@
         current-block (state/get-edit-block)
         selected-start (util/get-selection-start input)
         selected-end (util/get-selection-end input)]
+   (js/console.error "keydown-delete-handler") ;kir
     (when current-block
       (cond
         (not= selected-start selected-end)
@@ -3099,9 +3125,11 @@
 
 (defn- cut-blocks-and-clear-selections!
   [copy?]
+	(js/console.error "cut-blocks-and-clear-selections!") ;kir
   (when-not (get-in @state/state [:ui/find-in-page :active?])
     (cut-selection-blocks copy?)
-    (clear-selection!)))
+    ; (clear-selection!) kir - не надо снимать выделение, мы выделяем блок, на который встаём после удаления
+    ))
 
 (defn shortcut-copy-selection
   [_e]
@@ -3114,6 +3142,7 @@
 
 (defn shortcut-delete-selection
   [e]
+   (js/console.error "shortcut-delete-selection") ;kir
   (util/stop e)
   (cut-blocks-and-clear-selections! false))
 
@@ -3187,6 +3216,7 @@
 
 (defn delete-selection
   [e]
+  (js/console.error "delete-selection") ;kir
   (cond
     (state/selection?)
     (shortcut-delete-selection e)
@@ -3199,6 +3229,7 @@
 
 (defn editor-delete
   [_state e]
+  (js/console.error "editor-delete") ;kir
   (when (state/editing?)
     (util/stop e)
     (keydown-delete-handler e)))
@@ -3410,6 +3441,17 @@
 
           true
           (remove nil?))))))
+
+
+(defn escape-editing
+  ([]
+   (escape-editing true))
+  ([select?]
+   (when (state/editing?)
+     (if select?
+       (->> (:block/uuid (state/get-edit-block))
+            select-block!)
+       (state/clear-edit!)))))
 
 (defn- skip-collapsing-in-db?
   []
@@ -3678,16 +3720,6 @@
                   ;; page block
                   (select-all-blocks! {:page (:block/name parent)}))))
             (select-all-blocks! {})))))))
-
-(defn escape-editing
-  ([]
-   (escape-editing true))
-  ([select?]
-   (when (state/editing?)
-     (if select?
-       (->> (:block/uuid (state/get-edit-block))
-            select-block!)
-       (state/clear-edit!)))))
 
 (defn replace-block-reference-with-content-at-point
   []
