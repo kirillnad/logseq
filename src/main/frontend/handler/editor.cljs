@@ -2576,9 +2576,12 @@
         (let [new-id (string/replace (gobj/get sibling-block "id") "ls-block" "edit-block")
               new-uuid (cljs.core/uuid sibling-block-id)
               block (db/pull repo '[*] [:block/uuid new-uuid])]
-          (edit-block! block
-                       [direction line-pos]
-                       new-id))))))
+          ; kir при выходе из редактируемого блока стрелками вверх-вниз не входим в редактирование нового блока, а просто выделяем его
+          ; (edit-block! block
+          ;              [direction line-pos]
+          ;              new-id)
+					(select-block! new-uuid) ;kir
+          )))))
 
 (defn keydown-up-down-handler
   [direction]
