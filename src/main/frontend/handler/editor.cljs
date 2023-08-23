@@ -3910,7 +3910,7 @@
         (state/selection?)
         (do
           (util/stop e)
-          (open-selected-block-lr! direction e))
+          (open-selected-block! direction e))
 
         :else
         nil))))
