@@ -286,7 +286,7 @@
                                     :fn      (editor-handler/shortcut-select-up-down :down)}
 
 	  ; :editor/delete-selection        {:binding ["backspace" "delete"] kir - не надо, чтобы backspace удалял блоки. Можно случайно удалить блок.
-	  :editor/delete-selection        {:binding ["delete"] 
+	  :editor/delete-selection        {:binding ["delete delete delete"] 
                                     :fn      editor-handler/delete-selection}
 
    :editor/expand-block-children   {:binding "mod+down"
