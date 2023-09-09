@@ -2180,13 +2180,13 @@
                            (let [{:keys [value] :as state} (editor-handler/get-state)]
                              (editor-handler/save-block! state value))
 
-                (editor-handler/highlight-selection-area! block-id) ;kir - на клик мышки встаём на блок, но не переходим в режим редактирования
-                           ; (state/set-editing!
-                           ;  edit-input-id
-                           ;  content
-                           ;  block
-                           ;  cursor-range
-                           ;  false)
+                (editor-handler/highlight-selection-area! block-id) ;kir - убрал, т.к. не всегда это удобно и не даёт тогда редактировать блоки в досках - на клик мышки встаём на блок, но не переходим в режим редактирования
+                           (state/set-editing!
+                            edit-input-id
+                            content
+                            block
+                            cursor-range
+                            false)
 
                            )]
                   ;; wait a while for the value of the caret range
